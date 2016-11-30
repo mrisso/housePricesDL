@@ -31,7 +31,7 @@ nInputs = (#data[1])[1]
 require 'nn'
 
 net = nn.Sequential()
-net:add(nn.Linear(nInputs,1))
+net:add(nn.Linear((nInputs-1),1))
 --net:add(nn.Linear(200,200))
 --net:add(nn.Linear(200,200))
 --net:add(nn.Linear(200,200))
@@ -63,7 +63,7 @@ feval = function(x_new)
 end
 
 sgdParams = {
-	learningRate = 1e-3,
+	learningRate = 1e-20,
 	learningRateDecay = 1e-4,
 	weightDecay = 0,
 	momentum = 0
