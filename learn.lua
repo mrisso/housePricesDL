@@ -5,25 +5,43 @@ require 'csvigo'
 
 logger = optim.Logger('predict_log.txt')
 
-data = csvigo.load({path='./trainPD.csv', verbose='false', mode='raw'}) --load data from csv
+allData = csvigo.load({path='./trainPD.csv', verbose='false', mode='raw'}); --load data from csv
 
-table.remove(data,1) --remove first row
+table.remove(allData,1) --remove first row
 
-for i=1, #data do
+trainIndex = 1
+validateIndex = 1
+
+nInputs = #(allData[1]) - 1
+
+data = torch.Tensor(1022,(nInputs+1))
+validate = torch.Tensor(1460-1022,(nInputs+1))
+
+for i=1, #allData do
 	--removes first two columns of the entire set (id columns)
-	table.remove(data[i],1)
-	for j=1, #data[i] do
-		--transforms string data into numbers
-		data[i][j] = tonumber(data[i][j])
+	table.remove(allData[i],1)
+	if(i<=1022) then
+		for j=1, #allData[i] do
+			--transforms string data into numbers
+			data[trainIndex][j] = tonumber(allData[i][j])
+		end
+		trainIndex = trainIndex + 1
+	else
+		for j=1, #allData[i] do
+			--transforms string data into numbers
+			validate[validateIndex][j] = tonumber(allData[i][j])
+		end
+		validateIndex = validateIndex + 1
 	end
 end
 
 --create Tensor with data table
-data = torch.Tensor(data)
+--data = torch.Tensor(data)
+--validate = torch.Tensor(validate)
 --Using GPU
 data = data:cuda()
+validate = validate:cuda()
 
-nInputs = (#data[1])[1] - 1
 
 --Creating zero tensor with the data size (columns)
 --this tensor will be resposible for saving the
@@ -40,11 +58,21 @@ for i=1, (#data)[1] do
 	end
 end
 
+--Searching for zeros
+for i=1, (nInputs+1) do
+	if(normal[i] == 0) then
+		normal[i] = 1
+	end
+end
+
 --Normalizing data: Dividing every value of each
 --column with the highest one
 for i=1, (#data)[1] do
 	for j=1, (nInputs+1) do
 		data[i][j] = data[i][j] / normal[j]
+		if(i < validateIndex) then
+			validate[i][j] = validate[i][j] / normal[j]
+		end
 	end
 end
 
@@ -53,10 +81,15 @@ require 'nn'
 
 net = nn.Sequential()
 net:add(nn.Linear(nInputs,200))
+net:add(nn.Tanh())
 net:add(nn.Linear(200,200))
+net:add(nn.Tanh())
 net:add(nn.Linear(200,200))
+net:add(nn.Tanh())
 net:add(nn.Linear(200,200))
+net:add(nn.Tanh())
 net:add(nn.Linear(200,200))
+net:add(nn.Tanh())
 net:add(nn.Linear(200,1))
 --Using GPU
 net = net:cuda()
@@ -117,29 +150,11 @@ for i = 1,1e4 do
 	logger:plot()
 end
 
-test = csvigo.load({path='./.csv', verbose='false', mode='raw'}) --load test from csv
-
-
-table.remove(test,1) --remove first row
-
-for i=1, #test do
-	--removes first two columns of the entire set (id columns)
-	table.remove(test[i],1)
-	table.remove(test[i],1)
-	for j=1, #test[i] do
-		--transforms string test into numbers
-		test[i][j] = tonumber(test[i][j])
-	end
-end
-
-test = torch.Tensor(test)
-test:cuda()
-
-print(nInputs)
-print((#test[1])[1])
-for i=1, (#test)[1] do
-	for j=1, nInputs do
-		print(j)
-		test[i][j] = test[i][j] / normal[j+1]
-	end
+for i = 1,(#validate)[1] do
+	local sample = validate[i]
+	local inputs = sample[{ {2,(nInputs+1)} }]
+	local myPrediction = net:forward(inputs)
+	local value = (validate[i][{{1}}])[1]
+	local dif = math.abs(myPrediction[1]-value) * normal[1]
+	print(string.format("%2d  %6.2f %6.2f %6.2f", i, myPrediction[1], value, dif))
 end
