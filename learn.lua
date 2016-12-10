@@ -3,23 +3,19 @@ require 'cunn'
 require 'optim'
 require 'csvigo'
 
-logger = optim.Logger('loss_log.txt')
+logger = optim.Logger('predict_log.txt')
 
-data = csvigo.load({path='./processedData.csv', verbose='false', mode='raw'}) --load data from csv
+data = csvigo.load({path='./trainPD.csv', verbose='false', mode='raw'}) --load data from csv
 
 table.remove(data,1) --remove first row
 
 for i=1, #data do
 	--removes first two columns of the entire set (id columns)
 	table.remove(data[i],1)
-	table.remove(data[i],1)
 	for j=1, #data[i] do
 		--transforms string data into numbers
 		data[i][j] = tonumber(data[i][j])
 	end
-	value = data[i][37]
-	table.remove(data[i],37)
-	table.insert(data[i],1,value)
 end
 
 --create Tensor with data table
@@ -56,12 +52,12 @@ end
 require 'nn'
 
 net = nn.Sequential()
-net:add(nn.Linear(nInputs,1))
---net:add(nn.Linear(200,200))
---net:add(nn.Linear(200,200))
---net:add(nn.Linear(200,200))
---net:add(nn.Linear(200,200))
---net:add(nn.Linear(200,1))
+net:add(nn.Linear(nInputs,200))
+net:add(nn.Linear(200,200))
+net:add(nn.Linear(200,200))
+net:add(nn.Linear(200,200))
+net:add(nn.Linear(200,200))
+net:add(nn.Linear(200,1))
 --Using GPU
 net = net:cuda()
 
@@ -84,8 +80,12 @@ feval = function(x_new)
 
 	dl_dx:zero()
 
-	local loss_x = criterion:forward(net:forward(inputs),target)
+	forwardOut = net:forward(inputs)
+
+	local loss_x = criterion:forward(forwardOut,target)
 	net:backward(inputs, criterion:backward(net.output, target))
+
+	result = result + math.abs(forwardOut[1]-target[1])
 
 	return loss_x, dl_dx
 end
@@ -98,17 +98,48 @@ sgdParams = {
 }
 
 for i = 1,1e4 do
-	lossAtual = 0
+	--lossAtual = 0
+	result = 0
 
 	for i = 1, (#data)[1] do
-		_,fs = optim.sgd(feval,x,sgdParams)
-		lossAtual = lossAtual + fs[1]
+		_,_= optim.sgd(feval,x,sgdParams)
+		--lossAtual = lossAtual + fs[1]
 	end
 
-	lossAtual = lossAtual / (#data)[1]
-	print('current loss = ' .. lossAtual)
+	--lossAtual = lossAtual / (#data)[1]
+	--print('current loss = ' .. lossAtual)
+	result = (result / (#data)[1]) * normal[1]
 
-	logger:add{['training error'] = lossAtual}
-	logger:style{['training error'] = '-'}
+	print(result)
+
+	logger:add{['training prediction'] = result}
+	logger:style{['training prediction'] = '-'}
 	logger:plot()
+end
+
+test = csvigo.load({path='./.csv', verbose='false', mode='raw'}) --load test from csv
+
+
+table.remove(test,1) --remove first row
+
+for i=1, #test do
+	--removes first two columns of the entire set (id columns)
+	table.remove(test[i],1)
+	table.remove(test[i],1)
+	for j=1, #test[i] do
+		--transforms string test into numbers
+		test[i][j] = tonumber(test[i][j])
+	end
+end
+
+test = torch.Tensor(test)
+test:cuda()
+
+print(nInputs)
+print((#test[1])[1])
+for i=1, (#test)[1] do
+	for j=1, nInputs do
+		print(j)
+		test[i][j] = test[i][j] / normal[j+1]
+	end
 end
