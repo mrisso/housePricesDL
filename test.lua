@@ -4,18 +4,18 @@ require 'nn'
 require 'csvigo'
 
 net = torch.load("network.dat")
-net = net:cuda()
 
 normal = torch.load("normal.dat")
 
 testData = csvigo.load({path='./testPD.csv', verbose='false', mode='raw'}); --load data from csv
 
+print(testData[1])
 table.remove(testData,1) --remove first row
 
 for i=1, #testData do
 	--removes first two columns of the entire set (id columns)
 	table.remove(testData[i],1)
-	for j=1, #testData[i] do
+	for j=1, #testData[1] do
 		--transforms string data into numbers
 		testData[i][j] = tonumber(testData[i][j])
 	end
@@ -23,8 +23,6 @@ end
 
 testData = torch.Tensor(testData)
 testData = testData:cuda()
-
-nInputs = #(testData[1]) - 1
 
 --Normalizing data based on training model
 for i=1, (#testData)[1] do

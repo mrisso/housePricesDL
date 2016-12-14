@@ -3,7 +3,7 @@ require 'cunn'
 require 'optim'
 require 'csvigo'
 
-logger = optim.Logger('predict_log.txt')
+--logger = optim.Logger('predict_log.txt')
 
 allData = csvigo.load({path='./trainPD.csv', verbose='false', mode='raw'}); --load data from csv
 
@@ -65,6 +65,7 @@ for i=1, (nInputs+1) do
 	end
 end
 
+torch.save("normal.dat",normal)
 --Normalizing data: Dividing every value of each
 --column with the highest one
 for i=1, (#data)[1] do
@@ -81,15 +82,15 @@ require 'nn'
 
 net = nn.Sequential()
 net:add(nn.Linear(nInputs,200))
-net:add(nn.Tanh())
+--net:add(nn.Tanh())
 net:add(nn.Linear(200,200))
-net:add(nn.Tanh())
+--net:add(nn.Tanh())
 net:add(nn.Linear(200,200))
-net:add(nn.Tanh())
+--net:add(nn.Tanh())
 net:add(nn.Linear(200,200))
-net:add(nn.Tanh())
+--net:add(nn.Tanh())
 net:add(nn.Linear(200,200))
-net:add(nn.Tanh())
+--net:add(nn.Tanh())
 net:add(nn.Linear(200,1))
 --Using GPU
 net = net:cuda()
@@ -158,3 +159,5 @@ for i = 1,(#validate)[1] do
 	local dif = math.abs(myPrediction[1]-value) * normal[1]
 	print(string.format("%2d  %6.2f %6.2f %6.2f", i, myPrediction[1], value, dif))
 end
+
+torch.save("network.dat", net)
